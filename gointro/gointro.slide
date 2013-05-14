@@ -1,0 +1,357 @@
+Golang overview
+May 14th 2013
+
+Rodrigo Kochenburger
+@divoxx
+
+* A language for today
+
+* Who
+
+- Ken Thompson
+- Robert Griesemer
+- Rob Pike
+
+* Why?
+
+- Efficiency
+- Safety
+- Concurrency
+- Scalability
+- Fast development cycle
+- No surprises
+
+* Design
+
+_Consensus_drove_the_design._Nothing_went_into_the_language_until_[Ken_Thompson,_Robert_Griesemer,_and_myself]_all_agreed_that_it_was_right._Some_features_didn’t_get_resolved_until_after_a_year_or_more_of_discussion._ *Rob*Pike*
+
+- Lightweight
+- Object Oriented, but not in the usual way
+- Concurrent, in a way that keeps you sane
+- Designed for working programmers
+
+* What people are saying
+
+_I_have_now_completed_two_projects_in_Go._I_predict_that_it's_going_to_be_the_dominant_language_for_server_work._
+*Tobias*Lütke,*Shopify*
+
+_Our_CPU_utilization_was_less_than_5%_and_the_entire_process_started_up_with_only_a_few_hundred_KB's_of_memory_(on_startup)_vs_our_Rails_apps_which_were_~50MB_(on_startup)_
+*Travis*Reeder,*IronWorker*
+
+_In_fact,_fast_builds,_fast_tests,_fast_peer-reviews_and_fast_deployment_means_that_some_ideas_can_go_from_the_whiteboard_to_running_in_production_in_less_than_an_hour_
+*Peter*Bourgon,*Soundcloud*
+
+_Go's_maniacal_focus_on_simplicity_and_orthogonality_aligns_with_our_view_of_software_engineering_
+*Blake*Mizerany*and*Keith*Rarick,*Heroku*
+
+* My thoughts
+
+- New but surprisingly mature
+- Sofisticated but very simple language and runtime
+- As any other language, it does not solve all problems
+- Perfect balance between high-level and low-level
+- It is an unique and awesome language
+- It will teach you a lot
+
+* Show me the code
+
+* Hello World
+
+.play examples/hello.go
+
+* Web app
+
+.play examples/hello_http.go
+
+* Go code units
+
+- packages
+- functions
+- types
+- interfaces
+- methods
+
+Private/Public visibility are defined in the package level by the first letter of the definitions. Capital letters are public. For example:
+
+  package foo
+
+  func Bar() // foo.Bar() can be executed from outside the foo pkg
+  func baz() // foo.baz() is callable only inside the package
+
+* Standard Library
+
+132 packages
+
+- bufio
+- bytes
+- database/sql
+- encoding/json
+- html
+- html/template
+- io
+- net/http
+- regexp
+- testing
+
+* Interfaces
+
+* Interfaces: Structural typing
+
+Interfaces are defined explicitally.
+
+For example, the two most used interfaces in a Go program are usually the `Reader` and `Writer` from the `io` pkg:
+
+  type Reader interface {
+      Read(p []byte) (n int, err error)
+  }
+
+  type Writer interface {
+      Write(p []byte) (n int, err error)
+  }
+
+Implementations are implicit. Any object that implements the method `Read` automatically implements the interface `Reader`.
+
+Enables retrofitting.
+
+* Interfaces: Small composable units
+
+  type ReadWriter interface {
+      Reader
+      Writer
+  }
+
+Small interfaces, less coupling, more orthogonality.
+
+* Interfaces: io.Writer
+
+Many packages in the standard library uses `io.Writer`. For example, the function `fmt.Fprintf` can write to any `Writer`
+
+  func Fprint(w io.Writer, a ...interface{}) (n int, err error)
+
+So it can do things like:
+
+  fmt.Fprint(os.Stdout, "Hello, World") // The same as fmt.Print("Hello, World")
+
+But since it takes an `io.Writer`, it can write to pretty much anything:
+
+- `net.Conn`
+- `http.ResponseWriter`
+- `bufio.Writer`, takes an io.Writer but also implements it
+- any other custom type that implements the `Write` method
+
+* Concurrency
+
+* Concurrency model
+
+_Don't_communicate_by_sharing_memory;_share_memory_by_communicating._
+
+Very *lightweight* and *high-level* model, consisted of two primitives:
+
+- Go routines
+- Channels
+
+Based on the CSP (Communicating Sequential Processes) model.
+
+  c := make(chan int)
+  go FunctionA(c)
+  go FunctionB(c)
+
+* Working with channels
+
+Channels accepts two operations: Read and Write.
+
+  c := make(chan int)
+  c <- 1
+  i := <-c
+
+.image images/yodawg_channels.jpg
+
+  ci := make(chan int)
+  cc := make(chan chan int)
+  cc <- ci
+
+* Real world concurrency example
+
+.play examples/concurrency.go /^func Bartender/,/\z/
+
+* Custom types and "object orientation"
+
+* Defining custom types
+
+Custom types can be defined and/or based on existing types.
+
+  type User struct {
+      Login           string
+      CryptedPassword CryptedPassword
+  }
+
+  type CryptedPassword []byte
+
+Any custom type can have methods attached to it:
+
+  func (cp *CryptedPassword) Check(pwd string) bool {
+      return encrypt(pwd) == cp
+  }
+
+  func (u *User) Authenticate(pwd string) {
+      u.CryptedPassword.Check(pwd)
+  }
+
+* Composition over inheritance
+
+  Same goals can be achieved using only interfaces and custom types or embedded structs.
+
+.play examples/embedded.go /^type Person/,/\z/
+
+* Arrays and Slices
+
+* Arrays
+
+Golang arrays are implemented by the traditional computer science definition: a *contiguous*memory*block* indexed by a sequence of integers, starting at a base.
+
+They are not dynamic and the array size is part of it's type definition.
+
+.play examples/array_different_sizes.go
+
+Allow for total control over memory allocation and layout, rarely used.
+
+* Slices are abstractions on top of arrays
+
+More widely used and less restrictive. They work as a window to an underlying array.
+
+For example:
+
+.play examples/slice_from_array.go /^func main/,/\z/
+
+They are easier to work with, can be grown and have an larger underlying array pre-allocated.
+
+.play examples/slice.go /^func main/,/\z/
+
+* Let's get real
+
+* A Concurrent Echo Server
+
+.play examples/echo.go
+
+* A JSON API
+
+.play examples/json_api.go /^type User/,/\z/
+
+* Go tool
+
+* packages
+
+The go tool follow some conventions to make the build process easier and consistent.
+
+One of the most important convention is about package names.
+
+Any external package (non-stdlib), have a full qualified name based on the repos URI. Examples:
+
+- github.com/bmizerany/pq
+- code.google.com/p/go.net/websocket
+
+This allows the package to be referenced by the same identifier, locally and remotely.
+
+  import (
+      "code.google.com/p/go.net/websocket"
+  )
+
+  func main() {
+      // ...
+      http.Handle("/echo", websocket.Handler(EchoServer))
+  }
+
+* environment variables
+
+There are environment variables that affects the go tool. There is only one that needs to be set ($GOPATH) all the others are inferred if not set.
+
+- *$GOPATH:* the base directory where your project exists, more to come.
+- *$GOROOT:* path to go installation, looks for stdlib, defaults to $GOROOT_FINAL
+- *$GOOS:* target operating system, defaults to $GOHOSTOS
+- *$GOARCH:* target compilation architecture, defaults to $GOHOSTARCH
+- *$GOBIN:* location where Go binaries will be installed, defaults to $GOROOT/bin
+- *$GOARM:* ARM architecture version the run-time libraries should target
+
+* go build
+
+- Front-end for compiler, assembler, cgo and linker.
+- Really fast
+- Expects code organization that reflects package URIs
+
+Assumes a directory structure under $GOPATH, for example:
+
+  src/
+  ├── code.google.com
+  │   └── p
+  │       └── go.crypto
+  └── github.com
+      ├── bmizerany
+      │   └── pq
+      ├── doximity
+      │   └── auth-api
+      ├── jessevdk
+      │   └── go-flags
+      └── wsxiaoys
+          └── terminal
+
+* go test
+
+Simple and minimalist yet powerful built-in test tool/framework.
+
+Runs all TestXXX(*testing.T) functions in all *_test.go files for the specified package(s).
+
+.code examples/example_test/example_test.go /^import/,/^\}/
+
+Running go test would give you something similar to this:
+
+  $ go test
+  PASS
+  ok    github.com/divoxx/talks/examples/example_test  0.015s
+
+* go get
+
+Downloads and install the given package to $GOPATH.
+
+  $ go get code.google.com/p/go.talks/pkg/present
+
+After running the command above, GOPATH would look like this:
+
+  ├── bin
+  │   └── present
+  ├── pkg
+  │   └── darwin_amd64
+  │       └── code.google.com
+  │           └── p
+  │               ├── go.net
+  │               └── go.talks
+  └── src
+      └── code.google.com
+          └── p
+              ├── go.net
+              │   ├── ...
+              └── go.talks
+                  ├── ...
+                  └── present
+
+* go fmt
+
+_Gofmt_formats_Go_programs._
+
+Provides a tool that formats Go source files accordingly to the accepted convention. Allow developers to focus on code rather than convention.
+
+.code examples/gofmt_before.go
+.code examples/gofmt_after.go
+
+* Other tools
+
+*go*doc*
+
+Parses go code and generates documentation.
+
+*go*vet*
+
+Implements some heuristics to analyze the source code and identify subtle problems caused by bad written code.
+
+*go*fix*
+
+Upgrade application code to reflect changes to the Golang. For example, upgrading from Go < 1.0 to Go > 1.0.
